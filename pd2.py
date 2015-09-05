@@ -37,29 +37,34 @@ def readAndExtract(filename):
 		y = y[0:len(y)-1:STEP, 1]
 	else:
 		y = y[0:len(y)-1:STEP]
+	y = normalize(y)[0]
 	y = butter_lowpass_filter(y, cutoff, fs, order)
 	x = x[0:len(x)-1:STEP]
 	return x, y
 
 def findPeaks(y):
-	return peakutils.indexes(y, thres=0.1, min_dist=44000)
+	return peakutils.indexes(y, thres=0.1, min_dist=44100)
 
 def plot(x, y, indexes, breaths):
 	pyplot.figure(figsize=(10,6))
 	pplot(x, y, indexes)
 	pyplot.title('Find peaks')
 	#show breaths
-	for key in breaths:
-		breath = breaths[key]
-		pyplot.axvspan(breath[0], breath[1], color='y', alpha=0.5, lw=0)
+	for breath in breaths:
+		pyplot.axvspan(breath[2], breath[3], color='y', alpha=0.5, lw=0)
 	
 	pyplot.show()
 
+def normalize(a, axis=-1, order=2):
+    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+    l2[l2==0] = 1
+    return a / np.expand_dims(l2, axis)
+
 def findBreaths(x, y, peaks):
-	breaths = {}
+	breaths = []
 	MAX_BREATH = 44100
 	BYTE_SIZE = 5000
-	THRESH = 1000
+	THRESH = .03
 	bmin = None
 	bmax = None
 	for peak in peaks:
@@ -86,13 +91,33 @@ def findBreaths(x, y, peaks):
 				break
 			index = index + BYTE_SIZE
 		if not bmax: bmax = index
-		breaths[peak] = (bmin, bmax)
+		breaths.append([peak, y[peak], bmin, bmax])
 		bmin = None
 		bmax= None
+	return aggregate(breaths)
+
+def aggregate(breaths):
+	i = 0
+	while i < len(breaths)-1:
+		if (breaths[i][3] > breaths[i+1][2]):
+			breaths[i][3] = breaths[i+1][3]
+			del breaths[i+1]
+		i = i + 1
 	return breaths
 
+def writeToFile(file, breaths):
+	file = open(file, 'w')
+	for breath in breaths:
+		for val in breath:
+			file.write(str(val)+", ")
+			print(val)
+		file.write("\n")
+		print()
+	file.close()
 
-x,y = readAndExtract('30sleep.wav')
+
+x,y = readAndExtract('sleep.wav')
 peaks = findPeaks(y)
 breaths = findBreaths(x, y, peaks)
+writeToFile('out.txt', breaths)
 plot(x, y, peaks, breaths)
