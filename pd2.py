@@ -101,6 +101,7 @@ def aggregate(breaths):
 	while i < len(breaths)-1:
 		if (breaths[i][3] > breaths[i+1][2]):
 			breaths[i][3] = breaths[i+1][3]
+			breaths[i][1] = max(breaths[i][1], breaths[i+1][1])
 			del breaths[i+1]
 		i = i + 1
 	return breaths
@@ -116,7 +117,7 @@ def writeToFile(file, breaths):
 	file.close()
 
 
-x,y = readAndExtract('sleep.wav')
+x,y = readAndExtract('apnea.wav')
 peaks = findPeaks(y)
 breaths = findBreaths(x, y, peaks)
 writeToFile('out.txt', breaths)
